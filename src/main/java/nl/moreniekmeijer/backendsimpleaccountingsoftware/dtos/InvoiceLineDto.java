@@ -1,4 +1,4 @@
-package dtos;
+package nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

@@ -1,12 +1,12 @@
-package mappers;
+package nl.moreniekmeijer.backendsimpleaccountingsoftware.mappers;
 
-import dtos.ClientDto;
-import dtos.InvoiceInputDto;
-import dtos.InvoiceLineDto;
-import dtos.InvoiceOutputDto;
-import models.Client;
-import models.Invoice;
-import models.InvoiceLine;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.ClientDto;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.InvoiceInputDto;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.InvoiceLineDto;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.InvoiceOutputDto;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.Client;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.Invoice;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.InvoiceLine;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;

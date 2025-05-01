@@ -1,6 +1,6 @@
-package repositories;
+package nl.moreniekmeijer.backendsimpleaccountingsoftware.repositories;
 
-import models.Invoice;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.Invoice;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

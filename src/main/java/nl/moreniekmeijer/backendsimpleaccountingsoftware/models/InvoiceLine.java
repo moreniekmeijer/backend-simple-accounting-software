@@ -1,4 +1,4 @@
-package models;
+package nl.moreniekmeijer.backendsimpleaccountingsoftware.models;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

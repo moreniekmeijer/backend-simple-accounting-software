@@ -1,4 +1,4 @@
-package models;
+package nl.moreniekmeijer.backendsimpleaccountingsoftware.models;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -26,6 +26,7 @@ public class Invoice {
     private Client client;
 
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "invoice_id")
     private List<InvoiceLine> lines = new ArrayList<>();
 
     private BigDecimal totalExclVat;

@@ -1,4 +1,4 @@
-package models;
+package nl.moreniekmeijer.backendsimpleaccountingsoftware.models;
 
 import jakarta.persistence.Embeddable;
 import lombok.AllArgsConstructor;

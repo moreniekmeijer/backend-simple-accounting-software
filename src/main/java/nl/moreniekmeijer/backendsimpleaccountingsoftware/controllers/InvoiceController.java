@@ -1,12 +1,12 @@
-package controllers;
+package nl.moreniekmeijer.backendsimpleaccountingsoftware.controllers;
 
-import dtos.InvoiceInputDto;
-import dtos.InvoiceOutputDto;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.InvoiceInputDto;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.InvoiceOutputDto;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import services.InvoiceService;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.services.InvoiceService;
 
 @RestController
 @RequestMapping("/invoices")
