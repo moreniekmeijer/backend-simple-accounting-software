@@ -3,6 +3,7 @@ package nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.Client;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -15,7 +16,7 @@ public class InvoiceOutputDto {
     private Long id;
     private String invoiceNumber;
     private LocalDate invoiceDate;
-    private ClientDto client;
+    private ClientOutputDto client;
     private List<InvoiceLineDto> lines;
     private BigDecimal totalExclVat;
     private BigDecimal totalInclVat;

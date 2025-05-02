@@ -1,6 +1,5 @@
 package nl.moreniekmeijer.backendsimpleaccountingsoftware.mappers;
 
-import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.ClientDto;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.InvoiceInputDto;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.InvoiceLineDto;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.InvoiceOutputDto;
@@ -14,13 +13,14 @@ import java.math.BigDecimal;
 @Component
 public class InvoiceMapper {
 
-    public Invoice toEntity(InvoiceInputDto dto) {
+    public static Invoice toEntity(InvoiceInputDto dto, Client client) {
         Invoice invoice = new Invoice();
         invoice.setInvoiceNumber(dto.getInvoiceNumber());
         invoice.setInvoiceDate(dto.getInvoiceDate());
-        invoice.setClient(toEntity(dto.getClient()));
+        invoice.setClient(client);
+
         invoice.setLines(dto.getLines().stream()
-                .map(this::toEntity)
+                .map(InvoiceMapper::toEntity)
                 .toList());
 
         BigDecimal total = invoice.getLines().stream()
@@ -28,45 +28,25 @@ public class InvoiceMapper {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         invoice.setTotalExclVat(total);
-        invoice.setTotalInclVat(total); // VAT always 0 due to exemption
+        invoice.setTotalInclVat(total);
         return invoice;
     }
 
-    public InvoiceOutputDto toDto(Invoice invoice) {
+    public static InvoiceOutputDto toDto(Invoice invoice) {
         InvoiceOutputDto dto = new InvoiceOutputDto();
         dto.setId(invoice.getId());
         dto.setInvoiceNumber(invoice.getInvoiceNumber());
         dto.setInvoiceDate(invoice.getInvoiceDate());
-        dto.setClient(toDto(invoice.getClient()));
+        dto.setClient(ClientMapper.toDto(invoice.getClient()));
         dto.setLines(invoice.getLines().stream()
-                .map(this::toDto)
+                .map(InvoiceMapper::toDto)
                 .toList());
         dto.setTotalExclVat(invoice.getTotalExclVat());
         dto.setTotalInclVat(invoice.getTotalInclVat());
         return dto;
     }
 
-    private Client toEntity(ClientDto dto) {
-        Client c = new Client();
-        c.setName(dto.getName());
-        c.setContactPerson(dto.getContactPerson());
-        c.setStreet(dto.getStreet());
-        c.setPostalCode(dto.getPostalCode());
-        c.setCity(dto.getCity());
-        return c;
-    }
-
-    private ClientDto toDto(Client c) {
-        ClientDto dto = new ClientDto();
-        dto.setName(c.getName());
-        dto.setContactPerson(c.getContactPerson());
-        dto.setStreet(c.getStreet());
-        dto.setPostalCode(c.getPostalCode());
-        dto.setCity(c.getCity());
-        return dto;
-    }
-
-    private InvoiceLine toEntity(InvoiceLineDto dto) {
+    private static InvoiceLine toEntity(InvoiceLineDto dto) {
         InvoiceLine line = new InvoiceLine();
         line.setDescription(dto.getDescription());
         line.setDate(dto.getDate());
@@ -76,7 +56,7 @@ public class InvoiceMapper {
         return line;
     }
 
-    private InvoiceLineDto toDto(InvoiceLine line) {
+    private static InvoiceLineDto toDto(InvoiceLine line) {
         InvoiceLineDto dto = new InvoiceLineDto();
         dto.setDescription(line.getDescription());
         dto.setDate(line.getDate());

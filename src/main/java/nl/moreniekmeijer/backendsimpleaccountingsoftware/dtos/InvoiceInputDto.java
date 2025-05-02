@@ -21,8 +21,8 @@ public class InvoiceInputDto {
     @NotNull
     private LocalDate invoiceDate;
 
-    @Valid
-    private ClientDto client;
+    @NotNull
+    private Long clientId;
 
     @NotEmpty
     private List<InvoiceLineDto> lines;

@@ -1,20 +1,14 @@
-package nl.moreniekmeijer.backendsimpleaccountingsoftware.models;
+package nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos;
 
-import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@Entity
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Client {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+public class ClientOutputDto {
     private Long id;
-
     private String name;
     private String contactPerson;
     private String street;

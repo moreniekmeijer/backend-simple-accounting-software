@@ -8,6 +8,7 @@ import nl.moreniekmeijer.backendsimpleaccountingsoftware.mappers.InvoiceMapper;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.Client;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.Invoice;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.InvoiceLine;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.repositories.ClientRepository;
 import org.springframework.stereotype.Service;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.repositories.InvoiceRepository;
 
@@ -24,27 +25,26 @@ import static nl.moreniekmeijer.backendsimpleaccountingsoftware.utils.InvoiceUti
 public class InvoiceService {
 
     private final InvoiceRepository invoiceRepository;
-    private final InvoiceMapper invoiceMapper;
+    private final ClientRepository clientRepository;
 
-    public InvoiceService(InvoiceRepository invoiceRepository, InvoiceMapper invoiceMapper) {
+    public InvoiceService(InvoiceRepository invoiceRepository, ClientRepository clientRepository) {
         this.invoiceRepository = invoiceRepository;
-        this.invoiceMapper = invoiceMapper;
+        this.clientRepository = clientRepository;
     }
 
     public InvoiceOutputDto createInvoice(InvoiceInputDto input) {
-        try {
-            Invoice invoice = invoiceMapper.toEntity(input);
-            Invoice saved = invoiceRepository.save(invoice);
-            return invoiceMapper.toDto(saved);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to save invoice", e);
-        }
+        Client client = clientRepository.findById(input.getClientId())
+                .orElseThrow(() -> new NoSuchElementException("Client not found with ID: " + input.getClientId()));
+
+        Invoice invoice = InvoiceMapper.toEntity(input, client);
+        Invoice saved = invoiceRepository.save(invoice);
+        return InvoiceMapper.toDto(saved);
     }
 
     public InvoiceOutputDto getInvoice(Long id) {
         Invoice invoice = invoiceRepository.findById(id).orElseThrow(() ->
                 new NoSuchElementException("Invoice not found"));
-        return invoiceMapper.toDto(invoice);
+        return InvoiceMapper.toDto(invoice);
     }
 
     public byte[] generateInvoicePdf(Long id) {

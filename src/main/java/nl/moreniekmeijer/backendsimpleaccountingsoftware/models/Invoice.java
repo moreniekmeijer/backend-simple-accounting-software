@@ -22,7 +22,8 @@ public class Invoice {
     private String invoiceNumber;
     private LocalDate invoiceDate;
 
-    @Embedded
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "client_id", nullable = false)
     private Client client;
 
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
