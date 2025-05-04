@@ -16,6 +16,7 @@ import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Locale;
 import java.util.NoSuchElementException;
 
@@ -34,17 +35,40 @@ public class InvoiceService {
 
     public InvoiceOutputDto createInvoice(InvoiceInputDto input) {
         Client client = clientRepository.findById(input.getClientId())
-                .orElseThrow(() -> new NoSuchElementException("Client not found with ID: " + input.getClientId()));
+                .orElseThrow(() -> new NoSuchElementException("Client not found"));
+
+        LocalDate invoiceDate = input.getInvoiceDate() != null
+                ? input.getInvoiceDate()
+                : LocalDate.now();
+
+        String invoiceNumber = input.getInvoiceNumber();
+        if (invoiceNumber == null || invoiceNumber.isBlank()) {
+            invoiceNumber = generateInvoiceNumber(client.getName(), invoiceDate);
+        }
+
+        if (invoiceRepository.findByInvoiceNumber(invoiceNumber).isPresent()) {
+            throw new IllegalStateException("Duplicate invoice number: " + invoiceNumber);
+        }
 
         Invoice invoice = InvoiceMapper.toEntity(input, client);
+        invoice.setInvoiceDate(invoiceDate);
+        invoice.setInvoiceNumber(invoiceNumber);
+
         Invoice saved = invoiceRepository.save(invoice);
         return InvoiceMapper.toDto(saved);
     }
 
-    public InvoiceOutputDto getInvoice(Long id) {
+    public InvoiceOutputDto getInvoiceById(Long id) {
         Invoice invoice = invoiceRepository.findById(id).orElseThrow(() ->
                 new NoSuchElementException("Invoice not found"));
         return InvoiceMapper.toDto(invoice);
+    }
+
+    public List<InvoiceOutputDto> getAllInvoices() {
+        List<Invoice> invoices = invoiceRepository.findAll();
+        return invoices.stream()
+                .map(InvoiceMapper::toDto)
+                .toList();
     }
 
     public byte[] generateInvoicePdf(Long id) {
@@ -147,5 +171,10 @@ public class InvoiceService {
         }
 
         return out.toByteArray();
+    }
+
+    private String generateInvoiceNumber(String clientName, LocalDate date) {
+        String prefix = clientName.replaceAll("\\s+", "").substring(0, 2).toUpperCase();
+        return prefix + date.getYear() + String.format("%02d", date.getMonthValue());
     }
 }

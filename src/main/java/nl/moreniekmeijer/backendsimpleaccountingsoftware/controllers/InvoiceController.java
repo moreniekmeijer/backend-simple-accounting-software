@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.services.InvoiceService;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/invoices")
 public class InvoiceController {
@@ -21,14 +23,19 @@ public class InvoiceController {
     }
 
     @PostMapping
-    public ResponseEntity<InvoiceOutputDto> create(@RequestBody @Valid InvoiceInputDto input) {
+    public ResponseEntity<InvoiceOutputDto> createInvoice(@RequestBody @Valid InvoiceInputDto input) {
         InvoiceOutputDto output = invoiceService.createInvoice(input);
         return ResponseEntity.status(HttpStatus.CREATED).body(output);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<InvoiceOutputDto> get(@PathVariable Long id) {
-        return ResponseEntity.ok(invoiceService.getInvoice(id));
+    public ResponseEntity<InvoiceOutputDto> getInvoiceById(@PathVariable Long id) {
+        return ResponseEntity.ok(invoiceService.getInvoiceById(id));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<InvoiceOutputDto>> getAllInvoices() {
+        return ResponseEntity.ok(invoiceService.getAllInvoices());
     }
 
     @GetMapping("/{id}/pdf")

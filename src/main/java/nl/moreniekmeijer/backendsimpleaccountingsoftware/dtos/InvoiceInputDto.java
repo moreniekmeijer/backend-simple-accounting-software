@@ -15,15 +15,11 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class InvoiceInputDto {
-    @NotBlank
-    private String invoiceNumber;
-
-    @NotNull
-    private LocalDate invoiceDate;
-
+    private String invoiceNumber;         // optioneel
+    private LocalDate invoiceDate;        // optioneel
     @NotNull
     private Long clientId;
-
     @NotEmpty
     private List<InvoiceLineDto> lines;
 }
+
