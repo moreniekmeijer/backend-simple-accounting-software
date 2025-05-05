@@ -2,11 +2,14 @@ package nl.moreniekmeijer.backendsimpleaccountingsoftware.services;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.ExpenseDto;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.ExpenseOutputDto;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.ParsedReceiptDto;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.detectors.*;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.mappers.ExpenseMapper;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.Expense;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.repositories.ExpenseRepository;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.utils.GoogleDriveUploader;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,6 +29,7 @@ public class ExpenseService {
     private String apiKey;
 
     private final ExpenseRepository expenseRepository;
+    private final GoogleDriveUploader googleDriveUploader;
 
     private final VendorDetector vendorDetector = new VendorDetector();
     private final InvoiceNumberDetector invoiceNumberDetector = new InvoiceNumberDetector();
@@ -33,33 +37,58 @@ public class ExpenseService {
     private final AmountDetector amountDetector = new AmountDetector();
     private final VatDetector vatDetector = new VatDetector();
 
-    public ExpenseService(ExpenseRepository expenseRepository) {
+    public ExpenseService(ExpenseRepository expenseRepository, GoogleDriveUploader googleDriveUploader) {
         this.expenseRepository = expenseRepository;
+        this.googleDriveUploader = googleDriveUploader;
     }
 
-    public ParsedReceiptDto parseReceipt(MultipartFile file) throws Exception {
+    public ExpenseDto parseReceiptToDto(MultipartFile file) throws Exception {
         String ocrText = runOcrApi(file);
-        return extractDataFromText(ocrText);
+        ParsedReceiptDto parsed = extractDataFromText(ocrText);
+        return ExpenseMapper.fromParsedDto(parsed);
     }
 
-    public Expense saveParsedReceipt(ParsedReceiptDto dto, MultipartFile file) throws IOException {
-        Expense expense = ExpenseMapper.fromParsedDto(dto, file);
-        return expenseRepository.save(expense);
+    public ExpenseOutputDto saveExpense(ExpenseDto dto, MultipartFile file) {
+        Expense expense = ExpenseMapper.fromDto(dto, file);
+
+        try {
+            // Upload het bestand naar Google Drive
+            String driveUrl = googleDriveUploader.uploadFile(file);
+            // Sla eventueel die link op in een nieuw veld in Expense als je dat wilt
+            // expense.setDriveUrl(driveUrl); // als je een veld hebt toegevoegd
+            System.out.println("Bestand geüpload naar: " + driveUrl);
+        } catch (IOException e) {
+            throw new RuntimeException("Upload naar Google Drive mislukt", e);
+        }
+
+        Expense saved = expenseRepository.save(expense);
+        return ExpenseMapper.toResponseDto(saved);
     }
 
-    public Optional<Expense> updateExpense(Long id, Expense updatedExpense) {
-        return expenseRepository.findById(id).map(existing -> {
-            ExpenseMapper.updateExpenseFields(existing, updatedExpense);
-            return expenseRepository.save(existing);
-        });
+    public Optional<ExpenseOutputDto> updateExpense(Long id, ExpenseDto dto) {
+        return expenseRepository.findById(id)
+                .map(existing -> {
+                    ExpenseMapper.updateExpenseFields(existing, ExpenseMapper.fromDto(dto));
+                    return expenseRepository.save(existing);
+                })
+                .map(ExpenseMapper::toResponseDto);
     }
 
-    public Optional<Expense> getExpenseById(Long id) {
-        return expenseRepository.findById(id);
+    public Optional<ExpenseOutputDto> getExpenseOutputById(Long id) {
+        return expenseRepository.findById(id)
+                .map(ExpenseMapper::toResponseDto);
     }
 
-    public List<Expense> getAllExpenses() {
-        return expenseRepository.findAll();
+    public List<ExpenseOutputDto> getAllExpenseOutputs() {
+        return expenseRepository.findAll().stream()
+                .map(ExpenseMapper::toResponseDto)
+                .toList();
+    }
+
+    public Optional<ReceiptFile> getReceiptFile(Long id) {
+        return expenseRepository.findById(id)
+                .filter(e -> e.getReceipt() != null)
+                .map(e -> new ReceiptFile(e.getReceipt(), e.getFileType()));
     }
 
     private ParsedReceiptDto extractDataFromText(String text) {
@@ -116,4 +145,7 @@ public class ExpenseService {
                 .get(0).getAsJsonObject()
                 .get("ParsedText").getAsString();
     }
+
+    public record ReceiptFile(byte[] file, String fileType) {}
 }
+

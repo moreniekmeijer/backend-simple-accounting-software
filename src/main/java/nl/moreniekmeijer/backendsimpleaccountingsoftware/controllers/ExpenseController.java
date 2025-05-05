@@ -1,9 +1,7 @@
 package nl.moreniekmeijer.backendsimpleaccountingsoftware.controllers;
 
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.ExpenseDto;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.ExpenseOutputDto;
-import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.ParsedReceiptDto;
-import nl.moreniekmeijer.backendsimpleaccountingsoftware.mappers.ExpenseMapper;
-import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.Expense;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.services.ExpenseService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -23,49 +21,50 @@ public class ExpenseController {
         this.expenseService = expenseService;
     }
 
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ExpenseOutputDto> uploadExpense(@RequestParam("file") MultipartFile file) {
+    @PostMapping(value = "/parse", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ExpenseDto> parseReceipt(@RequestParam("file") MultipartFile file) {
         try {
-            ParsedReceiptDto parsedReceipt = expenseService.parseReceipt(file);
-            Expense savedExpense = expenseService.saveParsedReceipt(parsedReceipt, file);
-            return ResponseEntity.ok(ExpenseMapper.toResponseDto(savedExpense));
+            ExpenseDto parsedDto = expenseService.parseReceiptToDto(file);
+            return ResponseEntity.ok(parsedDto);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ExpenseOutputDto> saveExpense(
+            @RequestPart("expense") ExpenseDto dto,
+            @RequestPart("file") MultipartFile file
+    ) {
+        ExpenseOutputDto saved = expenseService.saveExpense(dto, file);
+        return ResponseEntity.ok(saved);
+    }
+
     @PutMapping("/{id}")
-    public ResponseEntity<ExpenseOutputDto> updateExpense(@PathVariable Long id, @RequestBody Expense updatedExpense) {
-        return expenseService.updateExpense(id, updatedExpense)
-                .map(ExpenseMapper::toResponseDto)
+    public ResponseEntity<ExpenseOutputDto> updateExpense(@PathVariable Long id, @RequestBody ExpenseDto dto) {
+        return expenseService.updateExpense(id, dto)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ExpenseOutputDto> getExpenseById(@PathVariable Long id) {
-        return expenseService.getExpenseById(id)
-                .map(ExpenseMapper::toResponseDto)
+        return expenseService.getExpenseOutputById(id)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping
     public ResponseEntity<List<ExpenseOutputDto>> getAllExpenses() {
-        List<Expense> expenses = expenseService.getAllExpenses();
-        List<ExpenseOutputDto> dtos = expenses.stream()
-                .map(ExpenseMapper::toResponseDto)
-                .toList();
-        return ResponseEntity.ok(dtos);
+        return ResponseEntity.ok(expenseService.getAllExpenseOutputs());
     }
 
     @GetMapping("/{id}/receipt")
     public ResponseEntity<byte[]> getReceipt(@PathVariable Long id) {
-        return expenseService.getExpenseById(id)
-                .filter(expense -> expense.getReceipt() != null)
-                .map(expense -> ResponseEntity.ok()
-                        .contentType(MediaType.parseMediaType(expense.getFileType()))
-                        .body(expense.getReceipt()))
+        return expenseService.getReceiptFile(id)
+                .map(data -> ResponseEntity.ok()
+                        .contentType(MediaType.parseMediaType(data.fileType()))
+                        .body(data.file()))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 }

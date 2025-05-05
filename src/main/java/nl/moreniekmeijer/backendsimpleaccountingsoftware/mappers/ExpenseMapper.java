@@ -1,5 +1,6 @@
 package nl.moreniekmeijer.backendsimpleaccountingsoftware.mappers;
 
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.ExpenseDto;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.ExpenseOutputDto;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.ParsedReceiptDto;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.Expense;
@@ -31,21 +32,16 @@ public class ExpenseMapper {
         return dto;
     }
 
-    public static Expense fromParsedDto(ParsedReceiptDto parsedDto, MultipartFile file) throws IOException {
-        Expense expense = new Expense();
-        expense.setDate(parsedDto.getDate());
-        expense.setInvoiceNumber(parsedDto.getInvoiceNumber());
-        expense.setAmount(parsedDto.getAmount());
-        expense.setVat(parsedDto.getVat());
-        expense.setVendor(parsedDto.getVendor());
-
-        if (file != null && !file.isEmpty()) {
-            expense.setReceipt(file.getBytes());
-            expense.setFileType(file.getContentType());
-        }
-
-        return expense;
+    public static ExpenseDto fromParsedDto(ParsedReceiptDto parsedDto) {
+        ExpenseDto dto = new ExpenseDto();
+        dto.setDate(parsedDto.getDate());
+        dto.setInvoiceNumber(parsedDto.getInvoiceNumber());
+        dto.setAmount(parsedDto.getAmount());
+        dto.setVat(parsedDto.getVat());
+        dto.setVendor(parsedDto.getVendor());
+        return dto;
     }
+
 
     public static void updateExpenseFields(Expense target, Expense source) {
         target.setDate(source.getDate());
@@ -54,5 +50,29 @@ public class ExpenseMapper {
         target.setVat(source.getVat());
         target.setVendor(source.getVendor());
         target.setCategory(source.getCategory());
+    }
+
+    public static Expense fromDto(ExpenseDto dto) {
+        Expense expense = new Expense();
+        expense.setDate(dto.getDate());
+        expense.setInvoiceNumber(dto.getInvoiceNumber());
+        expense.setAmount(dto.getAmount());
+        expense.setVat(dto.getVat());
+        expense.setVendor(dto.getVendor());
+        expense.setCategory(dto.getCategory());
+        return expense;
+    }
+
+    public static Expense fromDto(ExpenseDto dto, MultipartFile file) {
+        Expense expense = fromDto(dto);
+        if (file != null && !file.isEmpty()) {
+            try {
+                expense.setReceipt(file.getBytes());
+                expense.setFileType(file.getContentType());
+            } catch (IOException e) {
+                throw new RuntimeException("Fout bij lezen bestand", e);
+            }
+        }
+        return expense;
     }
 }
