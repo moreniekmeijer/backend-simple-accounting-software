@@ -21,6 +21,7 @@ public class Invoice {
 
     private String invoiceNumber;
     private LocalDate invoiceDate;
+    private String driveUrl;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "client_id", nullable = false)
@@ -34,4 +35,8 @@ public class Invoice {
     private BigDecimal totalInclVat;
 
     private boolean vatExempt = true; // altijd vrijgesteld o.g.v. artikel 25
+
+    public void setLines(List<InvoiceLine> lines) {
+        this.lines = new ArrayList<>(lines);
+    }
 }

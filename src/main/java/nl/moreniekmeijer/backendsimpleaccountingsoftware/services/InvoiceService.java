@@ -9,16 +9,21 @@ import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.Client;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.Invoice;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.InvoiceLine;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.repositories.ClientRepository;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.utils.GoogleDriveUploader;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.stereotype.Service;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.repositories.InvoiceRepository;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 
 import static nl.moreniekmeijer.backendsimpleaccountingsoftware.utils.InvoiceUtils.*;
 
@@ -27,24 +32,23 @@ public class InvoiceService {
 
     private final InvoiceRepository invoiceRepository;
     private final ClientRepository clientRepository;
+    private final GoogleDriveUploader googleDriveUploader;
 
-    public InvoiceService(InvoiceRepository invoiceRepository, ClientRepository clientRepository) {
+    public InvoiceService(InvoiceRepository invoiceRepository, ClientRepository clientRepository, GoogleDriveUploader googleDriveUploader) {
         this.invoiceRepository = invoiceRepository;
         this.clientRepository = clientRepository;
+        this.googleDriveUploader = googleDriveUploader;
     }
 
     public InvoiceOutputDto createInvoice(InvoiceInputDto input) {
         Client client = clientRepository.findById(input.getClientId())
                 .orElseThrow(() -> new NoSuchElementException("Client not found"));
 
-        LocalDate invoiceDate = input.getInvoiceDate() != null
-                ? input.getInvoiceDate()
-                : LocalDate.now();
+        LocalDate invoiceDate = Optional.ofNullable(input.getInvoiceDate()).orElse(LocalDate.now());
 
-        String invoiceNumber = input.getInvoiceNumber();
-        if (invoiceNumber == null || invoiceNumber.isBlank()) {
-            invoiceNumber = generateInvoiceNumber(client.getName(), invoiceDate);
-        }
+        String invoiceNumber = Optional.ofNullable(input.getInvoiceNumber())
+                .filter(n -> !n.isBlank())
+                .orElseGet(() -> generateInvoiceNumber(client.getName(), invoiceDate));
 
         if (invoiceRepository.findByInvoiceNumber(invoiceNumber).isPresent()) {
             throw new IllegalStateException("Duplicate invoice number: " + invoiceNumber);
@@ -55,6 +59,26 @@ public class InvoiceService {
         invoice.setInvoiceNumber(invoiceNumber);
 
         Invoice saved = invoiceRepository.save(invoice);
+
+        // Upload PDF
+        try {
+            byte[] pdfBytes = generateInvoicePdf(saved.getId());
+            MultipartFile pdfFile = new MockMultipartFile(
+                    invoiceNumber + ".pdf",
+                    invoiceNumber + ".pdf",
+                    "application/pdf",
+                    pdfBytes
+            );
+            String driveUrl = googleDriveUploader.uploadToYearFolder(pdfFile, invoiceDate.getYear());
+
+            saved.setDriveUrl(driveUrl);
+            invoiceRepository.save(saved);
+
+            System.out.println("Factuur geüpload naar Drive: " + driveUrl);
+        } catch (IOException e) {
+            throw new RuntimeException("Fout bij uploaden naar Drive", e);
+        }
+
         return InvoiceMapper.toDto(saved);
     }
 
@@ -69,6 +93,22 @@ public class InvoiceService {
         return invoices.stream()
                 .map(InvoiceMapper::toDto)
                 .toList();
+    }
+
+    public void deleteInvoiceById(Long id) {
+        // Haal de factuur op
+        Invoice invoice = invoiceRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Invoice not found"));
+
+        // Verwijder het bestand van Google Drive
+        try {
+            googleDriveUploader.deleteFileById(invoice.getDriveUrl());
+        } catch (IOException e) {
+            throw new RuntimeException("Fout bij het verwijderen van het bestand van Drive", e);
+        }
+
+        // Verwijder de factuur uit de database
+        invoiceRepository.delete(invoice);
     }
 
     public byte[] generateInvoicePdf(Long id) {

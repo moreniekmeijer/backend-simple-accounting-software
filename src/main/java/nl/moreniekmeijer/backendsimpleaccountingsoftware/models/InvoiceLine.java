@@ -19,18 +19,9 @@ public class InvoiceLine {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     private String description;
-
-    // Optioneel: datum van uitvoering (bijv. "22-03-2025")
     private LocalDate date;
-
-    // Optioneel: duur in minuten
     private Integer durationMinutes;
-
-    // Optioneel: tarief per uur
     private BigDecimal hourlyRate;
-
-    // Verplicht: subtotaalbedrag
     private BigDecimal amount;
 }

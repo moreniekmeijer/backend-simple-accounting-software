@@ -19,6 +19,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Scanner;
 
@@ -49,14 +50,14 @@ public class ExpenseService {
     }
 
     public ExpenseOutputDto saveExpense(ExpenseDto dto, MultipartFile file) {
-        Expense expense = ExpenseMapper.fromDto(dto, file);
+        Expense expense = ExpenseMapper.fromDto(dto);
 
         try {
-            // Upload het bestand naar Google Drive
-            String driveUrl = googleDriveUploader.uploadFile(file);
-            // Sla eventueel die link op in een nieuw veld in Expense als je dat wilt
-            // expense.setDriveUrl(driveUrl); // als je een veld hebt toegevoegd
+            int year = dto.getDate().getYear(); // bepaal jaartal van bon
+            String driveUrl = googleDriveUploader.uploadToYearFolder(file, year);
             System.out.println("Bestand geüpload naar: " + driveUrl);
+
+            expense.setDriveUrl(driveUrl); // opslaan van de link
         } catch (IOException e) {
             throw new RuntimeException("Upload naar Google Drive mislukt", e);
         }
@@ -85,10 +86,20 @@ public class ExpenseService {
                 .toList();
     }
 
-    public Optional<ReceiptFile> getReceiptFile(Long id) {
-        return expenseRepository.findById(id)
-                .filter(e -> e.getReceipt() != null)
-                .map(e -> new ReceiptFile(e.getReceipt(), e.getFileType()));
+    public void deleteExpenseById(Long id) {
+        // Haal de factuur op
+       Expense expense = expenseRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Invoice not found"));
+
+        // Verwijder het bestand van Google Drive
+        try {
+            googleDriveUploader.deleteFileById(expense.getDriveUrl());
+        } catch (IOException e) {
+            throw new RuntimeException("Fout bij het verwijderen van het bestand van Drive", e);
+        }
+
+        // Verwijder de factuur uit de database
+        expenseRepository.delete(expense);
     }
 
     private ParsedReceiptDto extractDataFromText(String text) {
@@ -145,7 +156,4 @@ public class ExpenseService {
                 .get(0).getAsJsonObject()
                 .get("ParsedText").getAsString();
     }
-
-    public record ReceiptFile(byte[] file, String fileType) {}
 }
-

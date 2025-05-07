@@ -59,12 +59,9 @@ public class ExpenseController {
         return ResponseEntity.ok(expenseService.getAllExpenseOutputs());
     }
 
-    @GetMapping("/{id}/receipt")
-    public ResponseEntity<byte[]> getReceipt(@PathVariable Long id) {
-        return expenseService.getReceiptFile(id)
-                .map(data -> ResponseEntity.ok()
-                        .contentType(MediaType.parseMediaType(data.fileType()))
-                        .body(data.file()))
-                .orElseGet(() -> ResponseEntity.notFound().build());
+    @DeleteMapping("{id}")
+    public ResponseEntity<Void> deleteInvoice(@PathVariable Long id) {
+        expenseService.deleteExpenseById(id);
+        return ResponseEntity.noContent().build();
     }
 }

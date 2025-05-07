@@ -1,7 +1,6 @@
 package nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos;
 
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -15,8 +14,9 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class InvoiceInputDto {
-    private String invoiceNumber;         // optioneel
-    private LocalDate invoiceDate;        // optioneel
+    private String invoiceNumber;
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate invoiceDate;
     @NotNull
     private Long clientId;
     @NotEmpty

@@ -1,10 +1,10 @@
 
-INSERT INTO expense (date, invoice_number, amount, vat, category, receipt, file_type)
-VALUES ('2024-12-01', 'INV-2024-001', 120.00, 0.21, 'Kantoorbenodigdheden', NULL, NULL),
-       ('2024-12-05', 'INV-2024-002', 45.50, 0.09, 'Reiskosten', NULL, NULL),
-       ('2024-12-10', 'INV-2024-003', 300.00, 0.21, 'Software', NULL, NULL),
-       ('2024-12-12', 'INV-2024-004', 88.00, 0.21, 'Maaltijd', NULL, NULL),
-       ('2024-12-15', 'INV-2024-005', 150.00, 0.21, 'Apparatuur', NULL, NULL);
+INSERT INTO expense (date, invoice_number, amount, vat, category)
+VALUES ('2024-12-01', 'INV-2024-001', 120.00, 0.21, 'Kantoorbenodigdheden'),
+       ('2024-12-05', 'INV-2024-002', 45.50, 0.09, 'Reiskosten'),
+       ('2024-12-10', 'INV-2024-003', 300.00, 0.21, 'Software'),
+       ('2024-12-12', 'INV-2024-004', 88.00, 0.21, 'Maaltijd'),
+       ('2024-12-15', 'INV-2024-005', 150.00, 0.21, 'Apparatuur');
 
 INSERT INTO client (name, contact_person, street, postal_code, city)
 VALUES ('WAMV', 'Kees Kaas', 'Lesstraat 1', '1234 AB', 'Arnhem'),

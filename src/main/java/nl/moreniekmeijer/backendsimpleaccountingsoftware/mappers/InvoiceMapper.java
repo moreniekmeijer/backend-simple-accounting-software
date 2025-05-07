@@ -43,6 +43,7 @@ public class InvoiceMapper {
                 .toList());
         dto.setTotalExclVat(invoice.getTotalExclVat());
         dto.setTotalInclVat(invoice.getTotalInclVat());
+        dto.setDriveUrl(invoice.getDriveUrl());
         return dto;
     }
 

@@ -3,9 +3,7 @@ package nl.moreniekmeijer.backendsimpleaccountingsoftware.controllers;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.InvoiceInputDto;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.InvoiceOutputDto;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.services.InvoiceService;
@@ -39,13 +37,14 @@ public class InvoiceController {
     }
 
     @GetMapping("/{id}/pdf")
-    public ResponseEntity<byte[]> getInvoicePdf(@PathVariable Long id) {
-        byte[] pdfBytes = invoiceService.generateInvoicePdf(id);
-
-        return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_PDF)
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=invoice-" + id + ".pdf")
-                .body(pdfBytes);
+    public ResponseEntity<String> getInvoicePdfLink(@PathVariable Long id) {
+        InvoiceOutputDto dto = invoiceService.getInvoiceById(id);
+        return ResponseEntity.ok(dto.getDriveUrl());
     }
 
+    @DeleteMapping("{id}")
+    public ResponseEntity<Void> deleteInvoice(@PathVariable Long id) {
+        invoiceService.deleteInvoiceById(id);
+        return ResponseEntity.noContent().build();
+    }
 }

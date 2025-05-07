@@ -22,10 +22,6 @@ public class Expense {
     private BigDecimal amount;
     private String vendor;
     private String category;
-    private BigDecimal vat; // bijv. 0.21 voor 21%
-
-    @Lob
-    private byte[] receipt; // gescande bon (optioneel)
-
-    private String fileType; // bijv. "application/pdf" of "image/jpeg"
+    private BigDecimal vat;
+    private String driveUrl;
 }

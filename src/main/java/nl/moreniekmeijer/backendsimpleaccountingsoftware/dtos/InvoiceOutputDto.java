@@ -20,4 +20,5 @@ public class InvoiceOutputDto {
     private List<InvoiceLineDto> lines;
     private BigDecimal totalExclVat;
     private BigDecimal totalInclVat;
+    private String driveUrl;
 }

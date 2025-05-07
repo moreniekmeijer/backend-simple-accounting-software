@@ -18,6 +18,5 @@ public class ExpenseOutputDto {
     private String vendor;
     private String category;
     private BigDecimal vat;
-    private String fileType;
-    private String receiptUrl;
+    private String driveUrl;
 }
