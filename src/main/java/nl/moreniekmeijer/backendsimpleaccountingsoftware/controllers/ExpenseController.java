@@ -2,6 +2,7 @@ package nl.moreniekmeijer.backendsimpleaccountingsoftware.controllers;
 
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.ExpenseDto;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.ExpenseOutputDto;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.InvestmentInputDto;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.services.ExpenseService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -32,12 +33,11 @@ public class ExpenseController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ExpenseOutputDto> saveExpense(
-            @RequestPart("expense") ExpenseDto dto,
-            @RequestPart("file") MultipartFile file
-    ) {
-        ExpenseOutputDto saved = expenseService.saveExpense(dto, file);
-        return ResponseEntity.ok(saved);
+    public ResponseEntity<Void> saveExpense(@RequestPart("expense") ExpenseDto expenseDto,
+                                            @RequestPart("file") MultipartFile file,
+                                            @RequestPart("investment") InvestmentInputDto investmentDto) {
+        expenseService.saveExpenseAndCompleteInvestment(expenseDto, file, investmentDto);
+        return ResponseEntity.ok().build();
     }
 
     @PutMapping("/{id}")

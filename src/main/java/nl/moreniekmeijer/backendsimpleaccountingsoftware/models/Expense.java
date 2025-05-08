@@ -24,4 +24,7 @@ public class Expense {
     private String category;
     private BigDecimal vat;
     private String driveUrl;
+
+    @OneToOne(mappedBy = "expense", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private InvestmentDetails investmentDetails;
 }

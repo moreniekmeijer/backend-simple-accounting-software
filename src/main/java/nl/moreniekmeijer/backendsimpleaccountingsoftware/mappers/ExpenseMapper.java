@@ -2,13 +2,17 @@ package nl.moreniekmeijer.backendsimpleaccountingsoftware.mappers;
 
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.ExpenseDto;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.ExpenseOutputDto;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.InvestmentOutputDto;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.ParsedReceiptDto;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.Expense;
 
 public class ExpenseMapper {
 
     public static ExpenseOutputDto toResponseDto(Expense expense) {
-        if (expense == null) return null;
+        InvestmentOutputDto investmentDto = null;
+        if (expense.getInvestmentDetails() != null) {
+            investmentDto = InvestmentMapper.toDto(expense.getInvestmentDetails());
+        }
 
         ExpenseOutputDto dto = new ExpenseOutputDto();
         dto.setId(expense.getId());
@@ -19,6 +23,7 @@ public class ExpenseMapper {
         dto.setCategory(expense.getCategory());
         dto.setVat(expense.getVat());
         dto.setDriveUrl(expense.getDriveUrl());
+        dto.setInvestmentDetails(investmentDto);
 
         return dto;
     }

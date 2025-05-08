@@ -127,7 +127,7 @@ public class InvoiceService {
             Font small = new Font(Font.HELVETICA, 10);
 
             // Afzendergegevens
-            document.add(new Paragraph("Boekhouding Niek Meijer 2025", bold));
+            document.add(new Paragraph("Niek Meijer", bold));
             document.add(new Paragraph("Muntkade 130\n3531 AK, Utrecht\n0316 30273214\nniekjmeijer@gmail.com\n", normal));
             document.add(new Paragraph("IBAN: NL34 INGB 0008 3564 43\nBTW-ID: NL002312181B48\nKvK: 73978914\n", small));
             document.add(Chunk.NEWLINE);

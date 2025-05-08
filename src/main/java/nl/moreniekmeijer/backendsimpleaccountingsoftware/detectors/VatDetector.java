@@ -15,7 +15,7 @@ public class VatDetector {
                 return parseDecimal(matcher.group(2));
             }
         }
-        return null;
+        return new BigDecimal("0.21");
     }
 
     private BigDecimal parseDecimal(String str) {

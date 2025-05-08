@@ -2,19 +2,22 @@ package nl.moreniekmeijer.backendsimpleaccountingsoftware.services;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.ExpenseDto;
-import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.ExpenseOutputDto;
-import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.ParsedReceiptDto;
+import jakarta.transaction.Transactional;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.*;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.detectors.*;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.mappers.ExpenseMapper;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.mappers.InvestmentMapper;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.Expense;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.InvestmentDetails;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.repositories.ExpenseRepository;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.repositories.InvestmentRepository;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.utils.GoogleDriveUploader;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
+import java.math.BigDecimal;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -30,6 +33,7 @@ public class ExpenseService {
     private String apiKey;
 
     private final ExpenseRepository expenseRepository;
+    private final InvestmentRepository investmentRepository;
     private final GoogleDriveUploader googleDriveUploader;
 
     private final VendorDetector vendorDetector = new VendorDetector();
@@ -38,8 +42,9 @@ public class ExpenseService {
     private final AmountDetector amountDetector = new AmountDetector();
     private final VatDetector vatDetector = new VatDetector();
 
-    public ExpenseService(ExpenseRepository expenseRepository, GoogleDriveUploader googleDriveUploader) {
+    public ExpenseService(ExpenseRepository expenseRepository, InvestmentRepository investmentRepository, GoogleDriveUploader googleDriveUploader) {
         this.expenseRepository = expenseRepository;
+        this.investmentRepository = investmentRepository;
         this.googleDriveUploader = googleDriveUploader;
     }
 
@@ -49,21 +54,50 @@ public class ExpenseService {
         return ExpenseMapper.fromParsedDto(parsed);
     }
 
+    @Transactional
     public ExpenseOutputDto saveExpense(ExpenseDto dto, MultipartFile file) {
         Expense expense = ExpenseMapper.fromDto(dto);
 
         try {
-            int year = dto.getDate().getYear(); // bepaal jaartal van bon
+            int year = dto.getDate().getYear();
             String driveUrl = googleDriveUploader.uploadToYearFolder(file, year);
-            System.out.println("Bestand geüpload naar: " + driveUrl);
-
-            expense.setDriveUrl(driveUrl); // opslaan van de link
+            expense.setDriveUrl(driveUrl);
         } catch (IOException e) {
             throw new RuntimeException("Upload naar Google Drive mislukt", e);
         }
 
+        if (expense.getAmount().compareTo(BigDecimal.valueOf(450)) > 0) {
+            expense.setCategory("investering");
+        }
+
         Expense saved = expenseRepository.save(expense);
+
         return ExpenseMapper.toResponseDto(saved);
+    }
+
+    @Transactional
+    public void completeInvestment(Long expenseId, InvestmentInputDto dto) {
+        Expense expense = expenseRepository.findById(expenseId)
+                .orElseThrow(() -> new IllegalArgumentException("Expense met ID " + expenseId + " niet gevonden"));
+
+        if (expense.getInvestmentDetails() != null) {
+            throw new IllegalStateException("Er is al een investering gekoppeld aan deze expense");
+        }
+
+        InvestmentDetails details = InvestmentMapper.toEntity(expense, dto);
+        InvestmentDetails saved = investmentRepository.save(details);
+
+        expense.setInvestmentDetails(saved);
+        expenseRepository.save(expense);
+    }
+
+    @Transactional
+    public void saveExpenseAndCompleteInvestment(ExpenseDto expenseDto, MultipartFile file, InvestmentInputDto investmentDto) {
+        ExpenseOutputDto savedExpense = saveExpense(expenseDto, file);
+
+        if ("investering".equalsIgnoreCase(savedExpense.getCategory())) {
+            completeInvestment(savedExpense.getId(), investmentDto);
+        }
     }
 
     public Optional<ExpenseOutputDto> updateExpense(Long id, ExpenseDto dto) {

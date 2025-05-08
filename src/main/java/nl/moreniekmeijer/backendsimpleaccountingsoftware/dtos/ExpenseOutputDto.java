@@ -8,8 +8,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class ExpenseOutputDto {
     private Long id;
     private LocalDate date;
@@ -19,4 +17,6 @@ public class ExpenseOutputDto {
     private String category;
     private BigDecimal vat;
     private String driveUrl;
+
+    private InvestmentOutputDto investmentDetails;
 }
