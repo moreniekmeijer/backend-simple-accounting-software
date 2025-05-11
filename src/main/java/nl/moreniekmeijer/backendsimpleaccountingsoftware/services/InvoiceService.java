@@ -2,8 +2,11 @@ package nl.moreniekmeijer.backendsimpleaccountingsoftware.services;
 
 import com.lowagie.text.*;
 import com.lowagie.text.pdf.*;
+import jakarta.transaction.Transactional;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.ExpenseOutputDto;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.InvoiceInputDto;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.InvoiceOutputDto;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.mappers.ExpenseMapper;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.mappers.InvoiceMapper;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.Client;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.Invoice;
@@ -18,12 +21,11 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.List;
-import java.util.Locale;
-import java.util.NoSuchElementException;
-import java.util.Optional;
 
 import static nl.moreniekmeijer.backendsimpleaccountingsoftware.utils.InvoiceUtils.*;
 
@@ -40,6 +42,7 @@ public class InvoiceService {
         this.googleDriveUploader = googleDriveUploader;
     }
 
+    @Transactional
     public InvoiceOutputDto createInvoice(InvoiceInputDto input) {
         Client client = clientRepository.findById(input.getClientId())
                 .orElseThrow(() -> new NoSuchElementException("Client not found"));
@@ -57,6 +60,16 @@ public class InvoiceService {
         Invoice invoice = InvoiceMapper.toEntity(input, client);
         invoice.setInvoiceDate(invoiceDate);
         invoice.setInvoiceNumber(invoiceNumber);
+
+        validateLines(invoice.getLines());
+        fillMissingAmounts(invoice);
+
+        BigDecimal total = invoice.getLines().stream()
+                .map(InvoiceLine::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        invoice.setTotalExclVat(total);
+        invoice.setTotalInclVat(total);
 
         Invoice saved = invoiceRepository.save(invoice);
 
@@ -82,32 +95,75 @@ public class InvoiceService {
         return InvoiceMapper.toDto(saved);
     }
 
+    public void validateLines(List<InvoiceLine> lines) {
+        for (InvoiceLine line : lines) {
+            boolean timeBased = line.getDurationMinutes() != null && line.getHourlyRate() != null;
+            boolean distanceBased = line.getDistanceKm() != null && line.getRatePerKm() != null;
+            boolean hasAmount = line.getAmount() != null;
+
+            int modes = 0;
+            if (timeBased) modes++;
+            if (distanceBased) modes++;
+            if (hasAmount) modes++;
+
+            if (modes == 0) {
+                throw new IllegalArgumentException("Invoice line moet uren+tarief, afstand+tarief/km of bedrag bevatten");
+            }
+            if (modes > 1) {
+                throw new IllegalArgumentException("Invoice line mag slechts één type gegevens bevatten (tijd, afstand of vast bedrag)");
+            }
+        }
+    }
+
+    public void fillMissingAmounts(Invoice invoice) {
+        for (InvoiceLine line : invoice.getLines()) {
+            if (line.getAmount() == null) {
+                if (line.getDurationMinutes() != null && line.getHourlyRate() != null) {
+                    BigDecimal hours = BigDecimal.valueOf(line.getDurationMinutes()).divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
+                    line.setAmount(hours.multiply(line.getHourlyRate()));
+                } else if (line.getDistanceKm() != null && line.getRatePerKm() != null) {
+                    BigDecimal amount = BigDecimal.valueOf(line.getDistanceKm()).multiply(line.getRatePerKm());
+                    line.setAmount(amount);
+                } else {
+                    throw new IllegalArgumentException("Onvoldoende gegevens om bedrag te berekenen.");
+                }
+            }
+        }
+    }
+
     public InvoiceOutputDto getInvoiceById(Long id) {
         Invoice invoice = invoiceRepository.findById(id).orElseThrow(() ->
                 new NoSuchElementException("Invoice not found"));
         return InvoiceMapper.toDto(invoice);
     }
 
-    public List<InvoiceOutputDto> getAllInvoices() {
-        List<Invoice> invoices = invoiceRepository.findAll();
-        return invoices.stream()
+    public List<InvoiceOutputDto> getAllInvoices(Integer year) {
+        if (year == null) {
+            return invoiceRepository.findAll().stream()
+                    .map(InvoiceMapper::toDto)
+                    .toList();
+        }
+        return getAllInvoicesByYear(year);
+    }
+
+    public List<InvoiceOutputDto> getAllInvoicesByYear(Integer year) {
+        return invoiceRepository.findAll().stream()
+                .filter(invoice -> invoice.getInvoiceDate().getYear() == year)
                 .map(InvoiceMapper::toDto)
                 .toList();
     }
 
+    @Transactional
     public void deleteInvoiceById(Long id) {
-        // Haal de factuur op
         Invoice invoice = invoiceRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Invoice not found"));
 
-        // Verwijder het bestand van Google Drive
         try {
             googleDriveUploader.deleteFileById(invoice.getDriveUrl());
         } catch (IOException e) {
             throw new RuntimeException("Fout bij het verwijderen van het bestand van Drive", e);
         }
 
-        // Verwijder de factuur uit de database
         invoiceRepository.delete(invoice);
     }
 
@@ -129,6 +185,7 @@ public class InvoiceService {
             // Afzendergegevens
             document.add(new Paragraph("Niek Meijer", bold));
             document.add(new Paragraph("Muntkade 130\n3531 AK, Utrecht\n0316 30273214\nniekjmeijer@gmail.com\n", normal));
+            document.add(Chunk.NEWLINE);
             document.add(new Paragraph("IBAN: NL34 INGB 0008 3564 43\nBTW-ID: NL002312181B48\nKvK: 73978914\n", small));
             document.add(Chunk.NEWLINE);
 
@@ -139,23 +196,48 @@ public class InvoiceService {
             document.add(new Paragraph(client.getPostalCode() + ", " + client.getCity()));
             document.add(Chunk.NEWLINE);
 
-            // Factuurdatum + nummer
+            // Factuurdatum en nummer
             DateTimeFormatter fmt = DateTimeFormatter.ofPattern("EEEE d MMMM yyyy", new Locale("nl"));
             document.add(new Paragraph("Factuurdatum: " + invoice.getInvoiceDate().format(fmt), normal));
             document.add(new Paragraph("Factuurnummer: " + invoice.getInvoiceNumber(), bold));
             document.add(Chunk.NEWLINE);
 
-            // Tabel kop
-            PdfPTable table = new PdfPTable(4);
+            // Bepalen welke kolommen getoond worden
+            boolean showHours = invoice.getLines().stream().anyMatch(l -> l.getDurationMinutes() != null);
+            boolean showRate = invoice.getLines().stream().anyMatch(l -> l.getHourlyRate() != null);
+//            boolean showDistance = invoice.getLines().stream().anyMatch(l -> l.getDistanceKm() != null);
+//            boolean showRateKm = invoice.getLines().stream().anyMatch(l -> l.getRatePerKm() != null);
+
+            List<String> headers = new ArrayList<>();
+            headers.add("Datum");
+            headers.add("Omschrijving");
+            if (showHours) headers.add("Aantal uren");
+            if (showRate) headers.add("Tarief");
+//            if (showDistance) headers.add("Km");
+//            if (showRateKm) headers.add("Tarief/km");
+            headers.add("Subtotaal");
+
+            int columnCount = headers.size();
+            float[] columnWidths = new float[columnCount];
+            int idx = 0;
+            columnWidths[idx++] = 1.5f;
+            columnWidths[idx++] = 4f;
+            if (showHours) columnWidths[idx++] = 2f;
+            if (showRate) columnWidths[idx++] = 2f;
+//            if (showDistance) columnWidths[idx++] = 1.5f;
+//            if (showRateKm) columnWidths[idx++] = 2f;
+            columnWidths[idx] = 1.5f;
+
+            PdfPTable table = new PdfPTable(columnCount);
             table.setWidthPercentage(100);
-            table.setWidths(new float[]{2, 2, 2, 2});
+            table.setWidths(columnWidths);
             table.setSpacingBefore(10f);
             table.setSpacingAfter(10f);
 
-            table.addCell(new Phrase("Dag (dd/mm)", bold));
-            table.addCell(new Phrase("Aantal uren", bold));
-            table.addCell(new Phrase("Tarief", bold));
-            table.addCell(new Phrase("Subtotaal", bold));
+            // Header toevoegen
+            for (String header : headers) {
+                table.addCell(new Phrase(header, bold));
+            }
 
             BigDecimal total = BigDecimal.ZERO;
             int totalMinutes = 0;
@@ -165,39 +247,58 @@ public class InvoiceService {
                 Integer minutes = line.getDurationMinutes();
                 BigDecimal rate = line.getHourlyRate();
                 BigDecimal amount = line.getAmount();
+                Integer km = line.getDistanceKm();
+                BigDecimal kmRate = line.getRatePerKm();
 
                 total = total.add(amount);
                 if (minutes != null) totalMinutes += minutes;
 
                 table.addCell(date != null ? date.format(DateTimeFormatter.ofPattern("d/M")) : "-");
-                table.addCell(minutes != null ? formatDuration(minutes) : "-");
-                table.addCell(rate != null ? formatMoney(rate) : "-");
+                String description = line.getDescription() != null ? line.getDescription() : "";
+                if (km != null && kmRate != null) {
+                    description = "Reiskosten " + km + " km à " + formatMoney(kmRate);
+                }
+                table.addCell(description.isEmpty() ? "-" : description);
+                if (showHours) table.addCell(minutes != null ? formatDuration(minutes) : "-");
+                if (showRate) table.addCell(rate != null ? formatMoney(rate) : "-");
+//                if (showDistance) table.addCell(km != null ? km.toString() : "-");
+//                if (showRateKm) table.addCell(kmRate != null ? formatMoney(kmRate) : "-");
                 table.addCell(formatMoney(amount));
             }
 
             // Lege rij
             PdfPCell emptyCell = new PdfPCell(new Phrase(""));
-            emptyCell.setColspan(4);
+            emptyCell.setColspan(columnCount);
             emptyCell.setBorder(Rectangle.NO_BORDER);
+            emptyCell.setFixedHeight(20f);
             table.addCell(emptyCell);
 
             // Totalen
-            table.addCell(makeRightAlignedCell("Totaal " + formatDuration(totalMinutes), 3, bold));
+            int totalKm = invoice.getLines().stream()
+                    .filter(l -> l.getDistanceKm() != null)
+                    .mapToInt(InvoiceLine::getDistanceKm)
+                    .sum();
+
+            String totalLabel = showHours ? "Totaal " + formatDuration(totalMinutes) :
+                    totalKm > 0 ? "Totaal " + totalKm + " km" :
+                            "Totaal";
+
+            table.addCell(makeRightAlignedCell(totalLabel, columnCount - 1, bold));
             table.addCell(makeRightAlignedCell(formatMoney(total), 1, bold));
 
-            table.addCell(makeRightAlignedCell("Totaal exclusief BTW", 3, normal));
+            table.addCell(makeRightAlignedCell("Totaal exclusief BTW", columnCount - 1, normal));
             table.addCell(makeRightAlignedCell(formatMoney(invoice.getTotalExclVat()), 1, normal));
 
-            table.addCell(makeRightAlignedCell("Vrijstelling OB o.g.v. art. 25 Wet OB", 3, normal));
+            table.addCell(makeRightAlignedCell("Vrijstelling OB o.g.v. art. 25 Wet OB", columnCount - 1, normal));
             table.addCell(makeRightAlignedCell("€ 0,00", 1, normal));
 
-            table.addCell(makeRightAlignedCell("Totaal inclusief BTW", 3, bold));
+            table.addCell(makeRightAlignedCell("Totaal inclusief BTW", columnCount - 1, bold));
             table.addCell(makeRightAlignedCell(formatMoney(invoice.getTotalInclVat()), 1, bold));
 
             document.add(table);
             document.add(Chunk.NEWLINE);
 
-            // Betaalinstructie en afsluiter
+            // Afsluiting
             document.add(new Paragraph("Gelieve het bovenstaande bedrag binnen 21 dagen over te maken onder vermelding van factuurnummer en naam.", normal));
             document.add(Chunk.NEWLINE);
             document.add(new Paragraph("Hartelijk dank voor de medewerking.", normal));

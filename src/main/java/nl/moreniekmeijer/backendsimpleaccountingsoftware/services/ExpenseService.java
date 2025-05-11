@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -114,10 +115,42 @@ public class ExpenseService {
                 .map(ExpenseMapper::toResponseDto);
     }
 
-    public List<ExpenseOutputDto> getAllExpenseOutputs() {
+    public List<ExpenseOutputDto> getAllExpenses(Integer year) {
+        if (year == null) {
+            return expenseRepository.findAll().stream()
+                    .map(ExpenseMapper::toResponseDto)
+                    .toList();
+        }
+        return getAllExpensesByYear(year);
+    }
+
+    public List<ExpenseOutputDto> getAllExpensesByYear(Integer year) {
+        LocalDate onDate = LocalDate.of(year, 12, 31);
+
         return expenseRepository.findAll().stream()
-                .map(ExpenseMapper::toResponseDto)
+                .filter(expense -> isRelevantForYear(expense, year))
+                .map(expense -> mapExpenseToDtoWithYearlyBookValue(expense, onDate))
                 .toList();
+    }
+
+    private boolean isRelevantForYear(Expense expense, int year) {
+        if (!"investering".equalsIgnoreCase(expense.getCategory())) {
+            return expense.getDate().getYear() == year;
+        }
+        InvestmentDetails details = expense.getInvestmentDetails();
+        int startYear = details.getPurchaseDate().getYear();
+        int endYear = startYear + details.getDepreciationYears() - 1;
+        return year >= startYear && year <= endYear;
+    }
+
+    private ExpenseOutputDto mapExpenseToDtoWithYearlyBookValue(Expense expense, LocalDate onDate) {
+        ExpenseOutputDto dto = ExpenseMapper.toResponseDto(expense);
+        if ("investering".equalsIgnoreCase(expense.getCategory())) {
+            InvestmentDetails details = expense.getInvestmentDetails();
+            dto.getInvestmentDetails().setAnnualDepreciation(details.getAnnualDepreciation());
+            dto.getInvestmentDetails().setBookValue(details.getBookValue(onDate));
+        }
+        return dto;
     }
 
     public void deleteExpenseById(Long id) {

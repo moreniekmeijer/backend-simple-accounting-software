@@ -23,12 +23,6 @@ public class InvoiceMapper {
                 .map(InvoiceMapper::toEntity)
                 .toList());
 
-        BigDecimal total = invoice.getLines().stream()
-                .map(InvoiceLine::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        invoice.setTotalExclVat(total);
-        invoice.setTotalInclVat(total);
         return invoice;
     }
 
@@ -53,6 +47,8 @@ public class InvoiceMapper {
         line.setDate(dto.getDate());
         line.setDurationMinutes(dto.getDurationMinutes());
         line.setHourlyRate(dto.getHourlyRate());
+        line.setDistanceKm(dto.getDistanceKm());
+        line.setRatePerKm(dto.getRatePerKm());
         line.setAmount(dto.getAmount());
         return line;
     }
@@ -63,6 +59,8 @@ public class InvoiceMapper {
         dto.setDate(line.getDate());
         dto.setDurationMinutes(line.getDurationMinutes());
         dto.setHourlyRate(line.getHourlyRate());
+        dto.setDistanceKm(line.getDistanceKm());
+        dto.setRatePerKm(line.getRatePerKm());
         dto.setAmount(line.getAmount());
         return dto;
     }

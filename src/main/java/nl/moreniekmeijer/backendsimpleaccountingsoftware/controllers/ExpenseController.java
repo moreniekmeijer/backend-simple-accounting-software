@@ -55,8 +55,8 @@ public class ExpenseController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ExpenseOutputDto>> getAllExpenses() {
-        return ResponseEntity.ok(expenseService.getAllExpenseOutputs());
+    public ResponseEntity<List<ExpenseOutputDto>> getAllExpenses(@RequestParam(required = false) Integer year) {
+        return ResponseEntity.ok(expenseService.getAllExpenses(year));
     }
 
     @DeleteMapping("{id}")

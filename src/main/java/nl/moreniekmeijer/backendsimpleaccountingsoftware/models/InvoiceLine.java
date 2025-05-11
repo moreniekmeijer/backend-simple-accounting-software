@@ -23,5 +23,7 @@ public class InvoiceLine {
     private LocalDate date;
     private Integer durationMinutes;
     private BigDecimal hourlyRate;
+    private Integer distanceKm;
+    private BigDecimal ratePerKm;
     private BigDecimal amount;
 }

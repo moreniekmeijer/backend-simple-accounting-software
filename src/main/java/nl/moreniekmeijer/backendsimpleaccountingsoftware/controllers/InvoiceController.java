@@ -32,8 +32,8 @@ public class InvoiceController {
     }
 
     @GetMapping
-    public ResponseEntity<List<InvoiceOutputDto>> getAllInvoices() {
-        return ResponseEntity.ok(invoiceService.getAllInvoices());
+    public ResponseEntity<List<InvoiceOutputDto>> getAllInvoices(@RequestParam(required = false) Integer year) {
+        return ResponseEntity.ok(invoiceService.getAllInvoices(year));
     }
 
     @GetMapping("/{id}/pdf")

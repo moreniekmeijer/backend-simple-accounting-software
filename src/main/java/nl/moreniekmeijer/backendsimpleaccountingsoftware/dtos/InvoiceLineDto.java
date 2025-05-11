@@ -13,9 +13,15 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class InvoiceLineDto {
     private String description;
+
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate date;
+
     private Integer durationMinutes;
     private BigDecimal hourlyRate;
+
+    private Integer distanceKm;
+    private BigDecimal ratePerKm;
+
     private BigDecimal amount;
 }
