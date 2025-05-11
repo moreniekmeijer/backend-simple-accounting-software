@@ -1,3 +1,6 @@
+INSERT INTO company_details (id, name, street, postal_code, city, phone, email, iban, vat_number, chamber_of_commerce)
+VALUES
+    (1, 'Mijn Bedrijf', 'Straatnaam 1', '1234 AA', 'Amsterdam', '0612345678', 'info@mijnbedrijf.nl', 'NL91ABNA0417164300', 'NL123456789B01', '12345678');
 
 INSERT INTO expense (date, invoice_number, amount, vat, category)
 VALUES ('2024-12-01', 'INV-2024-001', 120.00, 0.21, 'Kantoorbenodigdheden'),

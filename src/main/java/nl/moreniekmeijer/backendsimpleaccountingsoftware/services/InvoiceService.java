@@ -9,6 +9,7 @@ import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.InvoiceOutputDto;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.mappers.ExpenseMapper;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.mappers.InvoiceMapper;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.Client;
+import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.CompanyDetails;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.Invoice;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.InvoiceLine;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.repositories.ClientRepository;
@@ -35,11 +36,13 @@ public class InvoiceService {
     private final InvoiceRepository invoiceRepository;
     private final ClientRepository clientRepository;
     private final GoogleDriveUploader googleDriveUploader;
+    private final CompanyDetailsService companyDetailsService;
 
-    public InvoiceService(InvoiceRepository invoiceRepository, ClientRepository clientRepository, GoogleDriveUploader googleDriveUploader) {
+    public InvoiceService(InvoiceRepository invoiceRepository, ClientRepository clientRepository, GoogleDriveUploader googleDriveUploader, CompanyDetailsService companyDetailsService) {
         this.invoiceRepository = invoiceRepository;
         this.clientRepository = clientRepository;
         this.googleDriveUploader = googleDriveUploader;
+        this.companyDetailsService = companyDetailsService;
     }
 
     @Transactional
@@ -171,6 +174,8 @@ public class InvoiceService {
         Invoice invoice = invoiceRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Invoice not found"));
 
+        CompanyDetails companyDetails = companyDetailsService.getDetails();
+
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         Document document = new Document(PageSize.A4, 50, 50, 50, 50);
 
@@ -183,10 +188,17 @@ public class InvoiceService {
             Font small = new Font(Font.HELVETICA, 10);
 
             // Afzendergegevens
-            document.add(new Paragraph("Niek Meijer", bold));
-            document.add(new Paragraph("Muntkade 130\n3531 AK, Utrecht\n0316 30273214\nniekjmeijer@gmail.com\n", normal));
+            document.add(new Paragraph(companyDetails.getName(), bold));
+            document.add(new Paragraph(
+                    companyDetails.getStreet() + "\n" +
+                            companyDetails.getPostalCode() + ", " + companyDetails.getCity() + "\n" +
+                            companyDetails.getPhone() + "\n" +
+                            companyDetails.getEmail() + "\n", normal));
             document.add(Chunk.NEWLINE);
-            document.add(new Paragraph("IBAN: NL34 INGB 0008 3564 43\nBTW-ID: NL002312181B48\nKvK: 73978914\n", small));
+            document.add(new Paragraph(
+                    "IBAN: " + companyDetails.getIban() + "\n" +
+                            "BTW-ID: " + companyDetails.getVatNumber() + "\n" +
+                            "KvK: " + companyDetails.getChamberOfCommerce() + "\n", small));
             document.add(Chunk.NEWLINE);
 
             // Klantgegevens
@@ -303,7 +315,7 @@ public class InvoiceService {
             document.add(Chunk.NEWLINE);
             document.add(new Paragraph("Hartelijk dank voor de medewerking.", normal));
             document.add(new Paragraph("Met vriendelijke groet,", normal));
-            document.add(new Paragraph("Niek Meijer", normal));
+            document.add(new Paragraph(companyDetails.getName(), normal));
 
         } catch (Exception e) {
             throw new RuntimeException("PDF generation failed", e);
