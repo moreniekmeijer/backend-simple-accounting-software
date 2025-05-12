@@ -22,10 +22,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Optional;
-import java.util.Scanner;
+import java.util.*;
 
 @Service
 public class ExpenseService {
@@ -38,7 +35,6 @@ public class ExpenseService {
     private final GoogleDriveUploader googleDriveUploader;
 
     private final VendorDetector vendorDetector = new VendorDetector();
-    private final InvoiceNumberDetector invoiceNumberDetector = new InvoiceNumberDetector();
     private final DateDetector dateDetector = new DateDetector();
     private final AmountDetector amountDetector = new AmountDetector();
     private final VatDetector vatDetector = new VatDetector();
@@ -52,6 +48,10 @@ public class ExpenseService {
     public ExpenseDto parseReceiptToDto(MultipartFile file) throws Exception {
         String ocrText = runOcrApi(file);
         ParsedReceiptDto parsed = extractDataFromText(ocrText);
+
+        String invoiceNumber = Objects.requireNonNull(file.getOriginalFilename()).replaceFirst("\\.pdf$", "");
+        parsed.setInvoiceNumber(invoiceNumber);
+
         return ExpenseMapper.fromParsedDto(parsed);
     }
 
@@ -93,12 +93,14 @@ public class ExpenseService {
     }
 
     @Transactional
-    public void saveExpenseAndCompleteInvestment(ExpenseDto expenseDto, MultipartFile file, InvestmentInputDto investmentDto) {
+    public ExpenseOutputDto saveExpenseAndCompleteInvestment(ExpenseDto expenseDto, MultipartFile file, InvestmentInputDto investmentDto) {
         ExpenseOutputDto savedExpense = saveExpense(expenseDto, file);
 
         if ("investering".equalsIgnoreCase(savedExpense.getCategory())) {
             completeInvestment(savedExpense.getId(), investmentDto);
         }
+
+        return savedExpense;
     }
 
     public Optional<ExpenseOutputDto> updateExpense(Long id, ExpenseDto dto) {
@@ -154,18 +156,15 @@ public class ExpenseService {
     }
 
     public void deleteExpenseById(Long id) {
-        // Haal de factuur op
-       Expense expense = expenseRepository.findById(id)
+        Expense expense = expenseRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Invoice not found"));
 
-        // Verwijder het bestand van Google Drive
         try {
             googleDriveUploader.deleteFileById(expense.getDriveUrl());
         } catch (IOException e) {
             throw new RuntimeException("Fout bij het verwijderen van het bestand van Drive", e);
         }
 
-        // Verwijder de factuur uit de database
         expenseRepository.delete(expense);
     }
 
@@ -173,7 +172,7 @@ public class ExpenseService {
         String[] lines = text.split("\\r?\\n");
         return new ParsedReceiptDto(
                 vendorDetector.detectVendor(lines),
-                invoiceNumberDetector.detectInvoiceNumber(lines),
+                null,
                 dateDetector.detectDate(lines),
                 amountDetector.detectTotalAmount(lines),
                 vatDetector.detectVat(lines)

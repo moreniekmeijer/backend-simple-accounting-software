@@ -33,11 +33,11 @@ public class ExpenseController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Void> saveExpense(@RequestPart("expense") ExpenseDto expenseDto,
+    public ResponseEntity<ExpenseOutputDto> saveExpense(@RequestPart("expense") ExpenseDto expenseDto,
                                             @RequestPart("file") MultipartFile file,
-                                            @RequestPart("investment") InvestmentInputDto investmentDto) {
-        expenseService.saveExpenseAndCompleteInvestment(expenseDto, file, investmentDto);
-        return ResponseEntity.ok().build();
+                                            @RequestPart(value = "investment", required = false) InvestmentInputDto investmentDto) {
+        ExpenseOutputDto savedExpense = expenseService.saveExpenseAndCompleteInvestment(expenseDto, file, investmentDto);
+        return ResponseEntity.ok(savedExpense);
     }
 
     @PutMapping("/{id}")
