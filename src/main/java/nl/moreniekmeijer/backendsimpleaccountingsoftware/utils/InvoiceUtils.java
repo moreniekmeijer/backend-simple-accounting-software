@@ -5,6 +5,7 @@ import com.lowagie.text.Font;
 import com.lowagie.text.Phrase;
 import com.lowagie.text.pdf.PdfPCell;
 
+import java.awt.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
@@ -21,10 +22,14 @@ public class InvoiceUtils {
         return String.format("%d:%02d", hours, mins);
     }
 
-    public static PdfPCell makeRightAlignedCell(String text, int colspan, Font font) {
+    public static PdfPCell makeRightAlignedCell(String text, int colspan, Font font, Color backgroundColor) {
         PdfPCell cell = new PdfPCell(new Phrase(text, font));
         cell.setColspan(colspan);
+        cell.setBorderColor(new Color(200, 200, 255));
         cell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        if (backgroundColor != null) {
+            cell.setBackgroundColor(backgroundColor);
+        }
         return cell;
     }
 }

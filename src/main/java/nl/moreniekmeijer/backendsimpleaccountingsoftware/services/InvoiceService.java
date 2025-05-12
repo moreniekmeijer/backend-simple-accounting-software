@@ -1,12 +1,12 @@
 package nl.moreniekmeijer.backendsimpleaccountingsoftware.services;
 
 import com.lowagie.text.*;
+import com.lowagie.text.Font;
+import com.lowagie.text.Rectangle;
 import com.lowagie.text.pdf.*;
 import jakarta.transaction.Transactional;
-import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.ExpenseOutputDto;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.InvoiceInputDto;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.dtos.InvoiceOutputDto;
-import nl.moreniekmeijer.backendsimpleaccountingsoftware.mappers.ExpenseMapper;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.mappers.InvoiceMapper;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.Client;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.models.CompanyDetails;
@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import nl.moreniekmeijer.backendsimpleaccountingsoftware.repositories.InvoiceRepository;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.awt.*;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -217,16 +218,12 @@ public class InvoiceService {
             // Bepalen welke kolommen getoond worden
             boolean showHours = invoice.getLines().stream().anyMatch(l -> l.getDurationMinutes() != null);
             boolean showRate = invoice.getLines().stream().anyMatch(l -> l.getHourlyRate() != null);
-//            boolean showDistance = invoice.getLines().stream().anyMatch(l -> l.getDistanceKm() != null);
-//            boolean showRateKm = invoice.getLines().stream().anyMatch(l -> l.getRatePerKm() != null);
 
             List<String> headers = new ArrayList<>();
             headers.add("Datum");
             headers.add("Omschrijving");
             if (showHours) headers.add("Aantal uren");
             if (showRate) headers.add("Tarief");
-//            if (showDistance) headers.add("Km");
-//            if (showRateKm) headers.add("Tarief/km");
             headers.add("Subtotaal");
 
             int columnCount = headers.size();
@@ -236,8 +233,6 @@ public class InvoiceService {
             columnWidths[idx++] = 4f;
             if (showHours) columnWidths[idx++] = 2f;
             if (showRate) columnWidths[idx++] = 2f;
-//            if (showDistance) columnWidths[idx++] = 1.5f;
-//            if (showRateKm) columnWidths[idx++] = 2f;
             columnWidths[idx] = 1.5f;
 
             PdfPTable table = new PdfPTable(columnCount);
@@ -248,11 +243,16 @@ public class InvoiceService {
 
             // Header toevoegen
             for (String header : headers) {
-                table.addCell(new Phrase(header, bold));
+                PdfPCell cell = new PdfPCell(new Phrase(header, bold));
+                cell.setBackgroundColor(new Color(215, 215, 255));
+                cell.setBorderColor(new Color(215, 215, 255));
+                table.addCell(cell);
             }
 
             BigDecimal total = BigDecimal.ZERO;
             int totalMinutes = 0;
+
+            boolean shade = false;
 
             for (InvoiceLine line : invoice.getLines()) {
                 LocalDate date = line.getDate();
@@ -265,17 +265,46 @@ public class InvoiceService {
                 total = total.add(amount);
                 if (minutes != null) totalMinutes += minutes;
 
-                table.addCell(date != null ? date.format(DateTimeFormatter.ofPattern("d/M")) : "-");
+                Color rowColor = shade ? new Color(240, 240, 255) : Color.WHITE;
+                shade = !shade;
+
+                // Datum
+                PdfPCell dateCell = new PdfPCell(new Phrase(date != null ? date.format(DateTimeFormatter.ofPattern("d/M")) : "-"));
+                dateCell.setBackgroundColor(rowColor);
+                dateCell.setBorderColor(new Color(200, 200, 255));
+                table.addCell(dateCell);
+
+                // Omschrijving
                 String description = line.getDescription() != null ? line.getDescription() : "";
                 if (km != null && kmRate != null) {
                     description = "Reiskosten " + km + " km à " + formatMoney(kmRate);
                 }
-                table.addCell(description.isEmpty() ? "-" : description);
-                if (showHours) table.addCell(minutes != null ? formatDuration(minutes) : "-");
-                if (showRate) table.addCell(rate != null ? formatMoney(rate) : "-");
-//                if (showDistance) table.addCell(km != null ? km.toString() : "-");
-//                if (showRateKm) table.addCell(kmRate != null ? formatMoney(kmRate) : "-");
-                table.addCell(formatMoney(amount));
+                PdfPCell descCell = new PdfPCell(new Phrase(description.isEmpty() ? "-" : description));
+                descCell.setBackgroundColor(rowColor);
+                descCell.setBorderColor(new Color(200, 200, 255));
+                table.addCell(descCell);
+
+                // Uren
+                if (showHours) {
+                    PdfPCell hoursCell = new PdfPCell(new Phrase(minutes != null ? formatDuration(minutes) : "-"));
+                    hoursCell.setBackgroundColor(rowColor);
+                    hoursCell.setBorderColor(new Color(200, 200, 255));
+                    table.addCell(hoursCell);
+                }
+
+                // Tarief
+                if (showRate) {
+                    PdfPCell rateCell = new PdfPCell(new Phrase(rate != null ? formatMoney(rate) : "-"));
+                    rateCell.setBackgroundColor(rowColor);
+                    rateCell.setBorderColor(new Color(200, 200, 255));
+                    table.addCell(rateCell);
+                }
+
+                // Subtotaal
+                PdfPCell amountCell = new PdfPCell(new Phrase(formatMoney(amount)));
+                amountCell.setBackgroundColor(rowColor);
+                amountCell.setBorderColor(new Color(200, 200, 255));
+                table.addCell(amountCell);
             }
 
             // Lege rij
@@ -295,17 +324,20 @@ public class InvoiceService {
                     totalKm > 0 ? "Totaal " + totalKm + " km" :
                             "Totaal";
 
-            table.addCell(makeRightAlignedCell(totalLabel, columnCount - 1, bold));
-            table.addCell(makeRightAlignedCell(formatMoney(total), 1, bold));
+            Color totalRowColor = new Color(240, 240, 255);
+            Color finalRowColor = new Color(225, 225, 255);
 
-            table.addCell(makeRightAlignedCell("Totaal exclusief BTW", columnCount - 1, normal));
-            table.addCell(makeRightAlignedCell(formatMoney(invoice.getTotalExclVat()), 1, normal));
+            table.addCell(makeRightAlignedCell(totalLabel, columnCount - 1, bold, null));
+            table.addCell(makeRightAlignedCell(formatMoney(total), 1, bold, null));
 
-            table.addCell(makeRightAlignedCell("Vrijstelling OB o.g.v. art. 25 Wet OB", columnCount - 1, normal));
-            table.addCell(makeRightAlignedCell("€ 0,00", 1, normal));
+            table.addCell(makeRightAlignedCell("Totaal exclusief BTW", columnCount - 1, normal, totalRowColor));
+            table.addCell(makeRightAlignedCell(formatMoney(invoice.getTotalExclVat()), 1, normal, totalRowColor));
 
-            table.addCell(makeRightAlignedCell("Totaal inclusief BTW", columnCount - 1, bold));
-            table.addCell(makeRightAlignedCell(formatMoney(invoice.getTotalInclVat()), 1, bold));
+            table.addCell(makeRightAlignedCell("Vrijstelling OB o.g.v. art. 25 Wet OB", columnCount - 1, normal, null));
+            table.addCell(makeRightAlignedCell("€ 0,00", 1, normal, null));
+
+            table.addCell(makeRightAlignedCell("Totaal inclusief BTW", columnCount - 1, bold, finalRowColor));
+            table.addCell(makeRightAlignedCell(formatMoney(invoice.getTotalInclVat()), 1, bold, finalRowColor));
 
             document.add(table);
             document.add(Chunk.NEWLINE);
